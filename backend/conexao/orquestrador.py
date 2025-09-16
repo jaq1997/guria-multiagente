@@ -7,7 +7,7 @@ AGENTES = {
     "boletim": agente_boletim
 }
 
-# 2. Mapeamento de palavras-chave para agentes (mais flexível)
+# 2. Mapeamento de palavras-chave para agentes 
 PALAVRAS_CHAVE = {
     "identidade": ["identidade", "rg", "carteira", "documento", "2ª via", "segunda via"],
     "boletim": ["boletim", "b.o", "bo", "ocorrencia", "ocorrência", "policia", "polícia", "crime"]
@@ -71,9 +71,9 @@ def orquestrador(mensagem: str, contexto=None):
             return (
                 "Olá! Eu sou a **GurIA**, a assistente virtual do **RSGOV**. 👋\n\n"
                 "Como posso te auxiliar hoje?\n\n"
-                "🆔 **Identidade** - 2ª via, agendamentos, consultas\n"
-                "🚔 **Boletim de Ocorrência** - Registros, consultas, orientações\n\n"
-                "📝 *Digite sobre o que você precisa ou mencione uma das opções acima.*"
+                "**Identidade** - 2ª via, agendamentos, consultas\n"
+                "**Boletim de Ocorrência** - Registros, consultas, orientações\n\n"
+                "*Digite sobre o que você precisa ou mencione uma das opções acima.*"
             ), {}
 
         # Responde despedidas fora de um fluxo
@@ -99,8 +99,8 @@ def orquestrador(mensagem: str, contexto=None):
             return (
                 "Hmm, não consegui entender exatamente o que você precisa. 🤔\n\n"
                 "Posso te ajudar com:\n\n"
-                "🆔 **Carteira de Identidade** (2ª via, agendamentos)\n"
-                "🚔 **Boletim de Ocorrência** (registros, consultas)\n\n"
+                "**Carteira de Identidade** (2ª via, agendamentos)\n"
+                "**Boletim de Ocorrência** (registros, consultas)\n\n"
                 "Sobre qual desses serviços você gostaria de saber?"
             ), {}
 
@@ -125,7 +125,7 @@ def resetar_contexto():
 
 # Teste simulando uma conversa REAL com mais cenários
 if __name__ == "__main__":
-    print("🤖 TESTANDO ORQUESTRADOR GURIA")
+    print(" TESTANDO ORQUESTRADOR GURIA")
     print("=" * 50)
     
     # Cenário 1: Conversa básica sobre identidade
