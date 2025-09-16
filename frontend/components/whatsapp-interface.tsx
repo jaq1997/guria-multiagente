@@ -304,11 +304,11 @@ export default function WhatsappInterface() {
             </Button>
             <div className="flex-1 relative">
               <Input 
-                value={message} 
+                value={message}  
                 onChange={(e) => setMessage(e.target.value)} 
                 onKeyDown={handleKeyPress}
                 placeholder="Mensagem" 
-                className="pr-10 sm:pr-12 bg-gray-100 dark:bg-gray-700 border-0 rounded-full text-xs sm:text-sm h-8 sm:h-10 text-gray-900"
+                className="pr-10 sm:pr-12 bg-gray-100 dark:bg-gray-700 border-0 rounded-full text-xs sm:text-sm h-8 sm:h-10 placeholder:text-[#b3b3b3]"
                 disabled={isLoading}
               />
               {message.trim() ? (
