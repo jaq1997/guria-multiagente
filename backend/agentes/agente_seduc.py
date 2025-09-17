@@ -2,145 +2,182 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def mensagem_lgpd():
+    return (
+        "⚠️ Aviso de Privacidade (LGPD): Para continuar, precisamos coletar e tratar alguns dados pessoais "
+        "como nome completo, CPF e documentos. Estes dados serão utilizados exclusivamente para realizar o serviço solicitado. "
+        "As informações serão tratadas conforme a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), com segurança e confidencialidade. "
+        "Você concorda com o uso dos seus dados para essa finalidade? (sim/não)"
+    )
+
 def agente_seduc(mensagem, contexto=None):
     try:
         logger.debug(f"Agente SEDUC chamado - Mensagem: '{mensagem}', Contexto: {contexto}")
-        
+
         if contexto is None:
             contexto = {}
 
         etapa = contexto.get("etapa", "inicio")
         logger.debug(f"Etapa atual: {etapa}")
 
-        # Mocks simples para teste
         vagas_cidades = {
-            "Porto Alegre": ["Escola Estadual A", "Escola Estadual B"],
-            "Novo Hamburgo": ["Escola Estadual NH1", "Escola Estadual NH2"],
-            "Canoas": ["Escola Estadual C1", "Escola Estadual C2"],
-            "Caxias do Sul": ["Escola Estadual CS1", "Escola Estadual CS2"]
+            "Porto Alegre": {
+                "infantil": ["CENTRO ADM FERNANDO FERRARI", "ARQUITETO BATISTTINO ANELE-DAER"],
+                "fundamental": ["ESCOLA ESTADUAL DE ENSINO FUNDAMENTAL COELHO NETO", "INSTITUTO ESTADUAL DOM DIOGO DE SOUZA"],
+                "medio": ["COLÉGIO ESTADUAL PROTASIO ALVES", "COLÉGIO ESTADUAL JÚLIO DE CASTILHOS"]
+            },
+            "Canoas": {
+                "infantil": ["CENTRO ADM FERNANDO FERRARI", "ARQUITETO BATISTTINO ANELE-DAER"],
+                "fundamental": ["ESCOLA ESTADUAL DE ENSINO FUNDAMENTAL COELHO NETO", "INSTITUTO ESTADUAL DOM DIOGO DE SOUZA"],
+                "medio": ["COLÉGIO ESTADUAL PROTASIO ALVES", "COLÉGIO ESTADUAL JÚLIO DE CASTILHOS"]
+            }
         }
 
         if etapa == "inicio":
             resposta = (
-                "🏫 **SEDUC - Secretaria da Educação**\n\n"
-                "Bem-vindo ao atendimento SEDUC!\n"
-                "Por favor, informe sua cidade para continuar."
+                "Certo, sobre SEDUC posso te ajudar com os seguintes serviços:\n"
+                "1 - Comprovante de matrícula\n"
+                "2 - Histórico escolar\n"
+                "3 - Vagas escolares disponíveis\n"
+                "4 - Rematrícula\n"
+                "Selecione a opção (digite o número correspondente)."
             )
             contexto.update({
-                "etapa": "aguarde_cidade",
+                "etapa": "aguarda_servico",
                 "agente_ativo": "seduc"
             })
-            logger.debug("Etapa definida como 'aguarde_cidade'")
             return resposta, contexto
 
-        elif etapa == "aguarde_cidade":
+        elif etapa == "aguarda_servico":
+            opcao = mensagem.strip()
+            if opcao not in ["1", "2", "3", "4"]:
+                resposta = "Opção inválida. Por favor, selecione entre 1, 2, 3 ou 4."
+                return resposta, contexto
+
+            contexto["servico_selecionado"] = opcao
+
+            if opcao == "3":  # vagas escolares
+                resposta = "Certo! E de que cidade tu falas?"
+                contexto["etapa"] = "aguarda_cidade_vagas"
+            else:  # histórico, comprovante matrícula ou rematrícula
+                resposta = mensagem_lgpd()
+                contexto["etapa"] = "aguarda_consentimento_lgpd"
+            return resposta, contexto
+
+        elif etapa == "aguarda_cidade_vagas":
             cidade = mensagem.strip().title()
-            logger.debug(f"Cidade informada: {cidade}")
-            
-            contexto.update({
-                "cidade": cidade,
-                "etapa": "aguarde_servico",
-                "agente_ativo": "seduc"
-            })
-            
-            resposta = (
-                f"📍 Cidade **{cidade}** selecionada.\n\n"
-                "Escolha o serviço que deseja:\n\n"
-                "**1** - Comprovante de matrícula\n"
-                "**2** - Histórico escolar\n"
-                "**3** - Vagas escolares disponíveis\n"
-                "**4** - Rematrícula\n\n"
-                "Digite o **número** da opção desejada."
-            )
-            return resposta, contexto
+            contexto["cidade"] = cidade
 
-        elif etapa == "aguarde_servico":
-            escolha = mensagem.lower().strip()
-            cidade = contexto.get("cidade", "sua cidade")
-            logger.debug(f"Escolha do serviço: {escolha}")
-
-            if escolha == "1":
+            if cidade not in vagas_cidades:
                 resposta = (
-                    f"📄 **Comprovante de Matrícula - {cidade}**\n\n"
-                    "Para solicitar o comprovante de matrícula:\n"
-                    "• Acesse o portal da SEDUC\n"
-                    "• Ou envie um e-mail para: matricula@seduc.rs.gov.br\n"
-                    "• Tenha em mãos: CPF do aluno e dados da escola\n\n"
-                    "Posso ajudar com outro serviço? Digite o número correspondente ou 'menu' para voltar."
+                    f"Desculpe, não tenho informações de vagas para a cidade {cidade}.\n"
+                    "Por favor, informe uma cidade válida ou digite 'menu' para voltar."
                 )
-            elif escolha == "2":
-                resposta = (
-                    f"📋 **Histórico Escolar - {cidade}**\n\n"
-                    "Para obter o histórico escolar:\n"
-                    "• Entre em contato com a escola onde foi matriculado\n"
-                    "• Para escolas extintas: procure a Coordenadoria Regional de Educação\n"
-                    "• Documentos necessários: RG e CPF do interessado\n\n"
-                    "Digite outra opção ou 'menu' para voltar."
-                )
-            elif escolha == "3":
-                vagas = vagas_cidades.get(cidade, [])
-                if vagas:
-                    lista_vagas = "• " + "\n• ".join(vagas)
-                    resposta = (
-                        f"🏫 **Vagas Disponíveis em {cidade}**\n\n"
-                        f"{lista_vagas}\n\n"
-                        "Para mais informações, entre em contato com a escola de interesse.\n"
-                        "Digite outra opção ou 'menu' para voltar."
-                    )
-                else:
-                    resposta = (
-                        f"❌ Não há informações sobre vagas escolares disponíveis para **{cidade}** no momento.\n\n"
-                        "Recomendamos entrar em contato com a Coordenadoria Regional de Educação.\n"
-                        "Digite outra opção ou 'menu' para voltar."
-                    )
-            elif escolha == "4":
-                resposta = (
-                    f"🔄 **Rematrícula - {cidade}**\n\n"
-                    "Para rematrícula:\n"
-                    "• Verifique os prazos no portal da SEDUC\n"
-                    "• Geralmente ocorre entre novembro e dezembro\n"
-                    "• Acompanhe o calendário escolar oficial\n\n"
-                    "Precisa de mais alguma coisa? Digite o número ou 'menu'."
-                )
-            elif escolha in ["sair", "cancelar", "menu", "voltar"]:
-                resposta = (
-                    "✅ Encerrando o atendimento SEDUC.\n"
-                    "Se precisar de algo mais, é só chamar novamente! 😊"
-                )
-                contexto = {"stage": "final"}
-                logger.debug("Finalizando agente SEDUC")
                 return resposta, contexto
             else:
                 resposta = (
-                    "❌ Opção inválida.\n\n"
-                    "Digite:\n"
-                    "**1, 2, 3 ou 4** para os serviços\n"
-                    "**'menu'** para voltar ao início"
+                    f"Qual o tipo de ensino?\n"
+                    f"1 - Infantil\n"
+                    f"2 - Fundamental\n"
+                    f"3 - Médio\n"
+                    "Digite o número correspondente."
                 )
+                contexto["etapa"] = "aguarda_tipo_ensino"
                 return resposta, contexto
 
-            # Manter na mesma etapa para permitir nova escolha
-            contexto.update({
-                "etapa": "aguarde_servico",
-                "agente_ativo": "seduc"
-            })
+        elif etapa == "aguarda_tipo_ensino":
+            tipos = {"1": "infantil", "2": "fundamental", "3": "medio"}
+            opcao = mensagem.strip()
+
+            if opcao not in tipos:
+                resposta = "Opção inválida. Por favor, selecione 1, 2 ou 3."
+                return resposta, contexto
+
+            cidade = contexto.get("cidade")
+            tipo = tipos[opcao]
+            vagas = vagas_cidades.get(cidade, {}).get(tipo, [])
+
+            if not vagas:
+                resposta = f"Não há vagas disponíveis para ensino {tipo} em {cidade} no momento."
+            else:
+                lista_vagas = "\n".join(f"• {vaga}" for vaga in vagas)
+                resposta = (
+                    f"Vagas disponíveis para ensino {tipo} em {cidade}:\n{lista_vagas}\n\n"
+                    "Se quiser consultar outra cidade ou serviço, digite a consulta ou 'menu' para sair."
+                )
+            contexto["etapa"] = "pos_consulta"
             return resposta, contexto
 
-        else:
-            logger.warning(f"Etapa desconhecida: {etapa}")
+        elif etapa == "aguarda_consentimento_lgpd":
+            resposta_usuario = mensagem.strip().lower()
+            if resposta_usuario not in ["sim", "não"]:
+                resposta = "Por favor, responda 'sim' para concordar ou 'não' para cancelar."
+                return resposta, contexto
+            elif resposta_usuario == "não":
+                resposta = "Entendido, não podemos continuar sem o seu consentimento. Se precisar de algo mais, é só chamar!"
+                contexto = {"stage": "final"}
+                return resposta, contexto
+            else:
+                resposta = "Ótimo! Por favor, informe seu nome completo, CPF e email separados por vírgula."
+                contexto["etapa"] = "aguarda_dados_contato"
+                return resposta, contexto
+
+        elif etapa == "aguarda_dados_contato":
+            dados = [d.strip() for d in mensagem.split(",")]
+            if len(dados) < 3:
+                resposta = "Por favor, informe nome completo, CPF e email separados por vírgula."
+                return resposta, contexto
+
+            nome, cpf, email = dados[0], dados[1], dados[2]
+            contexto.update({"nome": nome, "cpf": cpf, "email": email})
+
+            resposta = "Ok, estou buscando no sistema as informações para você..."
+            contexto["etapa"] = "aguarda_confirmacao_resumo"
+            return resposta, contexto
+
+        elif etapa == "aguarda_confirmacao_resumo":
+            # Simular resposta com dados fictícios
+            nome = contexto.get("nome", "")
+            cpf = contexto.get("cpf", "")
             resposta = (
-                "❓ Desculpe, houve um problema na conversa.\n"
-                "Vamos recomeçar: por favor, informe sua cidade para continuar."
+                f"Confirme os dados:\nNome: {nome}\nCPF: {cpf}\nInstituição de Ensino São Judas Tadeu\nAno de conclusão: 2023\n\n"
+                "Está tudo certo? (sim/não)"
             )
-            contexto.update({
-                "etapa": "aguarde_cidade",
-                "agente_ativo": "seduc"
-            })
+            contexto["etapa"] = "aguarda_confirmacao_usuario"
+            return resposta, contexto
+
+        elif etapa == "aguarda_confirmacao_usuario":
+            resposta_usuario = mensagem.strip().lower()
+            if resposta_usuario not in ["sim", "não"]:
+                return "Por favor, responda 'sim' para confirmar ou 'não' para cancelar.", contexto
+            if resposta_usuario == "não":
+                contexto["etapa"] = "aguarda_dados_contato"
+                return "Por favor, informe novamente seu nome completo, CPF e email separados por vírgula.", contexto
+
+            resposta = (
+                "Estamos enviando o PDF para o seu email. Se precisar de algo mais, estou à disposição!"
+            )
+            contexto = {"stage": "final"}
+            return resposta, contexto
+
+        elif etapa == "pos_consulta":
+            msg_lower = mensagem.strip().lower()
+            if msg_lower in ["menu", "voltar", "sair", "cancelar"]:
+                resposta = "Consulta encerrada. Se precisar de algo mais, estou à disposição! 😊"
+                contexto = {"stage": "final"}
+                return resposta, contexto
+            else:
+                resposta = "Por favor, digite o número da opção que deseja ou 'menu' para sair."
+                return resposta, contexto
+
+        else:
+            resposta = "Não entendi sua solicitação. Por favor, informe a opção desejada."
+            contexto["etapa"] = "inicio"
             return resposta, contexto
 
     except Exception as e:
         logger.error(f"Erro no agente SEDUC: {str(e)}")
         return (
-            "❌ Ocorreu um erro no atendimento SEDUC.\n"
-            "Por favor, tente novamente ou digite 'menu' para voltar ao início."
-        ), {"stage": "final"}
+            "❌ Ocorreu um erro no atendimento SEDUC. Por favor, tente novamente.",
+            {"stage": "final"},
+        )
