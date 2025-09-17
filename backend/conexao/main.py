@@ -30,7 +30,7 @@ class ChatRequest(BaseModel):
 @app.get("/")
 async def health_check():
     return {
-        "status": "ok", 
+        "status": "ok",
         "message": "GurIA API está funcionando!",
         "sessoes_ativas": len(sessoes_ativas)
     }
@@ -40,29 +40,25 @@ async def chat(data: ChatRequest):
     try:
         mensagem = data.message
         session_id = data.session_id
-
         if not session_id or session_id not in sessoes_ativas:
             session_id = str(uuid.uuid4())
             contexto = {}
         else:
             contexto = sessoes_ativas[session_id]
 
-        # Sincroniza arquivos anexados para o contexto do agente
         documentos_anexados = contexto.get("documentos_enviados", [])
         contexto["documentos_recebidos"] = documentos_anexados.copy()
 
         resposta, novo_contexto = orquestrador(mensagem, contexto)
 
+        novo_contexto["session_id"] = session_id
         sessoes_ativas[session_id] = novo_contexto
 
-        response_data = {
-            "reply": resposta, 
-            "contexto": novo_contexto, 
+        return {
+            "reply": resposta,
+            "contexto": novo_contexto,
             "session_id": session_id
         }
-
-        return response_data
-
     except Exception as e:
         error_session_id = data.session_id or str(uuid.uuid4())
         return {
@@ -72,7 +68,7 @@ async def chat(data: ChatRequest):
         }
 
 @app.post("/upload-document")
-async def upload_document(session_id: str = Form(...), file: UploadFile = File(...)):
+async def upload_document(session_id: str = Form(...), tipo_documento: str = Form(...), file: UploadFile = File(...)):
     try:
         session_dir = UPLOAD_DIRECTORY / session_id
         session_dir.mkdir(exist_ok=True)
@@ -84,10 +80,18 @@ async def upload_document(session_id: str = Form(...), file: UploadFile = File(.
         if session_id in sessoes_ativas:
             if "documentos_enviados" not in sessoes_ativas[session_id]:
                 sessoes_ativas[session_id]["documentos_enviados"] = []
-            sessoes_ativas[session_id]["documentos_enviados"].append(file.filename)
+            if tipo_documento not in sessoes_ativas[session_id]["documentos_enviados"]:
+                sessoes_ativas[session_id]["documentos_enviados"].append(tipo_documento)
 
-        return {"status": "sucesso", "filename": file.filename}
-
+        return {
+            "message": f"Arquivo '{file.filename}' do tipo '{tipo_documento}' enviado com sucesso!",
+            "status": "sucesso",
+            "filename": file.filename,
+            "tipo_documento": tipo_documento
+        }
     except Exception as e:
         traceback.print_exc()
-        return {"status": "erro", "message": f"Não foi possível salvar o arquivo: {str(e)}"}
+        return {
+            "status": "erro",
+            "message": f"Não foi possível salvar o arquivo: {str(e)}"
+        }
