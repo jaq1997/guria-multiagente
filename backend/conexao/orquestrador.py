@@ -45,31 +45,42 @@ def orquestrador(mensagem: str, contexto=None):
         despedidas = ["tchau", "até logo", "adeus", "cancelar", "sair", "voltar", "menu"]
         confirma_aceita = ["pronto", "ok", "enviado", "enviei", "confirmo"]
 
-        if any(desp in msg_lower for desp in despedidas):
+        # Verificar se é uma despedida (mas não quando está aguardando upload)
+        if any(desp in msg_lower for desp in despedidas) and not contexto.get("stage", "").startswith("aguarda_upload"):
             logger.debug("Despedida detectada")
-            return "Ok, cancelando a operação atual. Se precisar de algo mais, é só chamar! 😊", {}
+            return "Ok, cancelando a operação atual. Se precisar de algo mais, é só chamar!", {}
 
+        # Se há um agente ativo, continuar com ele
         if agente_ativo:
+            # Verificar se é uma confirmação de upload
             if msg_lower in confirma_aceita:
-                documentos_recebidos = contexto.get("documentos_recebidos", [])
-                if "rg" in documentos_recebidos and "comprovante" in documentos_recebidos:
-                    novo_contexto = contexto.copy()
-                    novo_contexto.pop("agente_ativo", None)
-                    novo_contexto.pop("stage", None)
-                    logger.debug("Documentos confirmados recebidos")
-                    return "Documentos recebidos. Vamos continuar o atendimento.", novo_contexto
-                else:
-                    logger.debug("Ainda faltam documentos")
-                    return "Ainda não recebi ambos os documentos (RG/Identidade e Comprovante/Residência). Por favor, envie ambos e digite 'pronto'.", contexto
+                stage = contexto.get("stage", "")
+                if stage.startswith("aguarda_upload"):
+                    logger.debug(f"Confirmação de upload detectada no stage: {stage}")
+                    # Manter todos os dados do contexto e passar para o agente
+                    agente_funcao = AGENTES.get(agente_ativo)
+                    if agente_funcao:
+                        try:
+                            resposta, novo_contexto = agente_funcao(mensagem, contexto)
+                            logger.debug(f"Resposta do agente após upload: '{resposta[:100]}...'")
+                            return resposta, novo_contexto
+                        except Exception as e:
+                            logger.error(f"Erro ao processar upload no agente {agente_ativo}: {str(e)}")
+                            return f"Erro ao processar upload: {str(e)}", contexto
+            
+            # Para qualquer outra mensagem com agente ativo, processar normalmente
             agente_funcao = AGENTES.get(agente_ativo)
             if agente_funcao:
                 try:
                     resposta, novo_contexto = agente_funcao(mensagem, contexto)
-                    logger.debug(f"Resposta do agente: '{resposta}', Novo contexto: {novo_contexto}")
+                    logger.debug(f"Resposta do agente: '{resposta[:100]}...', Stage: {novo_contexto.get('stage')}")
+                    
+                    # Verificar se o agente finalizou
                     if novo_contexto.get("stage") == "final" or novo_contexto.get("etapa") == "final":
                         novo_contexto.pop("agente_ativo", None)
-                        resposta += "\n\n💡 Posso ajudar com mais alguma coisa?"
+                        resposta += "\n\nPosso ajudar com mais alguma coisa?"
                         logger.debug("Agente finalizado")
+                    
                     return resposta, novo_contexto
                 except Exception as e:
                     logger.error(f"Erro ao chamar agente {agente_ativo}: {str(e)}")
@@ -78,25 +89,38 @@ def orquestrador(mensagem: str, contexto=None):
                 logger.error(f"Agente {agente_ativo} não encontrado em AGENTES")
                 return "Erro no agente ativo. Vamos recomeçar.", {}
 
+        # Se não há agente ativo, detectar novo agente
         agente_detectado = detectar_agente_por_palavra_chave(mensagem)
         logger.debug(f"Agente detectado: {agente_detectado}")
 
         if agente_detectado and agente_detectado in AGENTES:
-            contexto = {"agente_ativo": agente_detectado, "stage": "start", "etapa": "inicio"}
+            # Preservar dados da sessão se existirem
+            novo_contexto = {
+                "agente_ativo": agente_detectado, 
+                "stage": "start", 
+                "etapa": "inicio"
+            }
+            
+            # Preservar dados importantes da sessão anterior
+            for key in ["session_id", "documentos_enviados", "documentos_recebidos"]:
+                if key in contexto:
+                    novo_contexto[key] = contexto[key]
+            
             try:
                 logger.debug(f"Iniciando agente: {agente_detectado}")
-                resposta, novo_contexto = AGENTES[agente_detectado](mensagem, contexto)
+                resposta, contexto_final = AGENTES[agente_detectado](mensagem, novo_contexto)
                 logger.debug(f"Agente {agente_detectado} iniciado com sucesso")
-                return resposta, novo_contexto
+                return resposta, contexto_final
             except Exception as e:
                 logger.error(f"Erro ao iniciar agente {agente_detectado}: {str(e)}")
                 return f"Erro ao iniciar serviço. Tente novamente.", {}
 
+        # Verificar saudações - APENAS se o usuário iniciar a conversa
         saudacoes = ["oi", "olá", "hello", "hi", "bom dia", "boa tarde", "boa noite", "eae", "e aí"]
-        if any(saud in msg_lower for saud in saudacoes) or msg_lower in ["", "menu", "ajuda", "help"]:
+        if any(saud in msg_lower for saud in saudacoes) or msg_lower in ["menu", "ajuda", "help"]:
             logger.debug("Saudação detectada")
             return (
-                "Olá! Eu sou a **GurIA**, a assistente virtual do **RSGOV**. 👋\n\n"
+                "Olá! Eu sou a **GurIA**, a assistente virtual do **RSGOV**.\n\n"
                 "Como posso te ajudar hoje?\n\n"
                 "**Identidade** - 2ª via, agendamentos, consultas\n"
                 "**Boletim de Ocorrência** - registros e consultas\n"
@@ -106,6 +130,7 @@ def orquestrador(mensagem: str, contexto=None):
                 "*Digite sobre o que você precisa ou escolha uma das opções acima.*"
             ), {}
 
+        # Se nada foi detectado, resposta padrão mais simples
         logger.debug("Nenhuma condição atendida - retornando mensagem padrão")
         return (
             "Não consegui entender exatamente o que você precisa. Posso ajudar com:\n"

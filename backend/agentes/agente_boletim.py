@@ -111,13 +111,39 @@ def agente_boletim(mensagem, contexto=None):
             resposta = f'Arquivo "{nome_arquivo}" enviado com sucesso! Por favor, envie o próximo ou digite "pronto" se já enviou todos.'
         elif msg_normalizado == "pronto":
             documentos = contexto.get("documentos_recebidos", [])
-            tem_rg = any("rg" in doc.lower() or "identidade" in doc.lower() for doc in documentos)
-            tem_residencia = any("residencia" in doc.lower() or "comprovante" in doc.lower() for doc in documentos)
+            documentos_enviados = contexto.get("documentos_enviados", [])
+            
+            # Verificar se tem RG/Identidade - aceitar vários tipos
+            tem_rg = any(
+                tipo in documentos_enviados 
+                for tipo in ["rg", "identidade", "documento", "carteira"]
+            ) or any(
+                palavra in doc.lower() 
+                for doc in documentos 
+                for palavra in ["rg", "identidade", "id", "carteira", "documento"]
+            )
+            
+            # Verificar se tem comprovante de residência
+            tem_residencia = any(
+                tipo in documentos_enviados 
+                for tipo in ["comprovante", "residencia", "residência", "endereco"]
+            ) or any(
+                palavra in doc.lower() 
+                for doc in documentos 
+                for palavra in ["residencia", "residência", "comprovante", "endereco", "endereço"]
+            )
+            
             if tem_rg and tem_residencia:
                 resposta = "Documentos recebidos com sucesso! Por favor, informe seu email para contato."
                 contexto["stage"] = "aguarda_email"
             else:
-                resposta = "Ainda não recebi ambos os documentos (RG/Identidade e Comprovante/Residência). Por favor, envie ambos e digite 'pronto'."
+                faltam = []
+                if not tem_rg:
+                    faltam.append("RG/Identidade")
+                if not tem_residencia:
+                    faltam.append("Comprovante de Residência")
+                
+                resposta = f"Ainda faltam os seguintes documentos: {', '.join(faltam)}. Por favor, envie-os e digite 'pronto'."
         else:
             resposta = "Por favor, envie os arquivos corretamente ou digite 'pronto' quando terminar."
 
