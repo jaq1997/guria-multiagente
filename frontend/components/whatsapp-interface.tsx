@@ -29,7 +29,7 @@ const SimpleMarkdown = ({ children }: { children: string }) => {
 
 export default function WhatsappInterface() {
   const [message, setMessage] = useState("")
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[]>([]) // Iniciar com array vazio
   const [contexto, setContexto] = useState<any>({})
   const [isLoading, setIsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -43,54 +43,14 @@ export default function WhatsappInterface() {
   }, [messages, isLoading])
 
 
-  useEffect(() => {
-    const welcomeMessage: Message = {
-      id: "welcome",
-      text: `Olá! Eu sou a **GurIA**, a assistente virtual do **RSGOV**. 👋
-
-
-Como posso te ajudar hoje?
-
-
-**Identidade** - 2ª via, agendamentos, consultas
-**Boletim de Ocorrência** - registros e consultas
-**Clima** - alertas, previsão, defesa civil
-**IPE Saúde** - hospitais e clínicas credenciados
-**SEDUC** - matrícula, histórico, vagas
-
-
-*Digite sobre o que você precisa ou escolha uma das opções acima.*`,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      sent: false,
-    }
-    setMessages([welcomeMessage])
-  }, [])
+  // REMOVIDO: useEffect que adicionava mensagem automática
 
 
   const resetChat = () => {
-    setMessages([])
-    setContexto({})
-
-    const welcomeMessage: Message = {
-      id: "welcome-reset",
-      text: `Olá! Eu sou a **GurIA**, a assistente virtual do **RSGOV**. 👋
-
-
-Como posso te ajudar hoje?
-
-
-**Identidade** - 2ª via, agendamentos, consultas
-**Boletim de Ocorrência** - registros e consultas
-**Clima** - alertas, previsão, defesa civil
-**IPE Saúde** - hospitais e clínicas credenciados
-**SEDUC** - matrícula, histórico, vagas
-
-
-*Digite sobre o que você precisa ou escolha uma das opções acima.*`,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      sent: false,
-    }
-    setMessages([welcomeMessage])
+    setMessages([]) // Apenas limpar as mensagens
+    setContexto({}) // Limpar o contexto
+    
+    // REMOVIDO: Não adicionar mensagem automática no reset
   }
 
 
@@ -131,14 +91,17 @@ Como posso te ajudar hoje?
         setContexto(data.contexto)
       }
 
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: data.reply || "Desculpe, não recebi uma resposta válida.",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        sent: false,
-      }
+      // Só adicionar resposta do bot se não estiver vazia
+      if (data.reply && data.reply.trim()) {
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: data.reply,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          sent: false,
+        }
 
-      setMessages(prev => [...prev, botMessage])
+        setMessages(prev => [...prev, botMessage])
+      }
     } catch (error) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
